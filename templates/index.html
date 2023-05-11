@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style type="text/css">
+        body {
+            height: 100%;
+        }
+        html {
+            height: 100%;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            background-color: #232a36;
+        }
+        
+
+        .submit_btn {
+            background-color: #ebb830;
+            border-radius: 10x;
+            -moz-border-radius: 10px;
+            -webkit-border-radius: 10px;
+            box-sizing: border-box;
+            height: 100%;
+            width: 20%;
+            font-size: 20px;    
+            color: white;
+            float: left;
+            margin-top: 10px;
+        }
+
+        .zone_header {
+            width: 100%;
+            height: 10%;
+            text-align: center; /* 水平居中 */
+            color: #ebb830;
+            font-size: 50px;
+            margin: 0 auto;     
+        }
+
+        .zone_prompt {
+            width: 90%; 
+            height: 20%;
+            margin-right: 5%;
+            margin-left: 5%;
+        }
+
+        .zone_answer {
+            display: flex; 
+            flex-direction: column; 
+            width: 100%;  
+            height: 60%;      
+        }
+
+        .answer-header {
+            margin-top: 5%;
+            height: 10%;
+            font-size: 20px;
+            color: #ebb830;
+            margin-left: 5%;
+        }
+
+        .response-area {
+            overflow: auto;
+            height: 80%;
+            width: 90%;
+            font-size: 20px;
+            box-sizing: border-box;
+            margin: 0 auto;
+            margin-left: 5%;
+            margin-right: 5%;
+            margin-bottom: 1%;
+            color: white;
+            background-color: #505660;
+            padding-bottom: 10px;
+            padding-left: 2%;
+            padding-right: 2%;
+            border-radius: 10x;
+            border-radius: 5x;
+            -moz-border-radius: 5px;
+            -webkit-border-radius: 5px;
+        }
+
+        textarea {
+            resize: none;
+            height: 100%;
+            width: 75%;
+            border: none;
+            padding: 15px;
+            box-sizing: border-box;   
+            font-size: 20px;    
+            margin-right: 5%;
+            margin-top: 10px;
+            border-radius: 15x;
+            -moz-border-radius: 15px;
+            -webkit-border-radius: 15px;
+        }
+        textarea:focus {
+            border-color: #ebb830 !important;
+            background-color: white;
+            outline: none;
+        }
+    
+        textarea:not(:focus) {
+            background-color: #ece3cb;
+            
+        }
+
+    </style>
+    <script src="{{ url_for('static', filename='js/axios.min.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="zone_header">ZELTA-百科</div>
+        <div class="zone_prompt">
+            <form method="POST" id="myForm" style="width: 100%; height: 100%">
+                <textarea name="text" placeholder="请输入您的问题" style="float: left;"></textarea>
+                <input id="submit-btn" class="submit_btn" type="submit" value="提交">
+            </form>
+        </div>
+        <div class="zone_answer">
+            <div class="answer-header">回答(耗时大约20秒)：</div>
+            <div id="responseArea" class="response-area">返回的答案将显示在这里</div>
+        </div>        
+    </div>   
+    <script type="text/javascript">
+        var timerId = null;
+        var counter = 0;
+        var token = null;
+
+        function startTimer() {       
+          // 每5秒请求一次服务器数据
+          const responseArea = document.querySelector("#responseArea");
+          var ask_btn = document.querySelector("#submit-btn");
+          timerId = setInterval(function() {
+            if (counter < 5) {
+              axios.get("/my_gpt_ans")
+                .then(function(response) {
+                  responseArea.innerHTML = response.data["output_text"];                })
+                .catch(function(error) {
+                  console.error('请求数据出错:', error);
+                });
+              counter++;
+            } else {
+              clearInterval(timerId);
+              counter = 0;
+              // 允许再次点击
+              ask_btn.disabled = false
+              ask_btn.style.backgroundColor = "#ebb830";
+            }
+          }, 5000);
+        }        
+        // 在文档加载完毕后执行
+        document.addEventListener("DOMContentLoaded", function() {
+            // 获取表单元素和显示区域元素
+            const form = document.querySelector("#myForm");
+            const responseArea = document.querySelector("#responseArea");
+            var ask_btn = document.querySelector("#submit-btn");
+
+            axios.get('/token')
+            .then(function(response){
+                token = response.data.token;
+                console.log("token:" + token)
+            })
+            .catch(function(error){
+                console.log(error);
+            });
+            
+            
+            // 监听表单提交事件
+            form.addEventListener("submit", function(event) {
+                // 阻止默认提交行为
+                event.preventDefault();
+                ask_btn.disabled = true
+                ask_btn.style.backgroundColor = "#91949a";
+                // 获取表单数据
+                const formData = new FormData(event.target);
+
+                var possessed = false
+
+                // 发送 POST 请求
+                axios.post("/send_chat_question", formData, { headers: { 'Authorization': 'Bearer ' + token } })
+                    .then(function(response) {
+                        //console.log('服务器数据',response.data)
+                        responseArea.innerHTML = response.data["output_text"];
+                        possessed = response.data["possessed"]
+                        console.log("possessed::", possessed)
+                        // 连续发送5次Get请求
+                        if (possessed == false) {
+                            console.log("not possesed....")
+                            startTimer();
+                        } else {
+                            ask_btn.disabled = false
+                            ask_btn.style.backgroundColor = "#ebb830";
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error(error);
+                });                                
+
+            });
+        });
+    </script>
+</body>
+</html>
