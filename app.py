@@ -6,7 +6,7 @@ import threading
 import jwt
 
 # 用于JWT的密钥，实际应用中请保密
-SECRET_KEY = "albertzmh"
+SECRET_KEY = "Secret-Key"
 
 
 incoming_request_No = 0
